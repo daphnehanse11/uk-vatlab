@@ -38,6 +38,9 @@ data/ons-business-statistics/*.xlsx
 data/ons-business-statistics/*.xls
 data/ons-business-statistics/*.csv
 data/synthetic_firms.parquet
+data/synthetic_firms.csv
+data/synthetic_firms_turnover.csv
+data/HMRC_VAT_annual_statistics/raw_data/Annual_UK_VAT_Statistics_2023-24.xls
 
 # Python
 __pycache__/
