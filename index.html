@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UK VAT Lab - Interactive Sector Turnover Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.95;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        .controls-panel {
+            flex: 0 0 350px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+        
+        .chart-container {
+            flex: 1;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            min-height: 600px;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+        }
+        
+        .control-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        .sector-grid {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            background: white;
+        }
+        
+        .sector-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            transition: background 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .sector-item:hover {
+            background: #f7fafc;
+        }
+        
+        .sector-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 12px;
+            cursor: pointer;
+        }
+        
+        .sector-item label {
+            cursor: pointer;
+            flex: 1;
+            font-size: 0.95rem;
+            color: #2d3748;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .firm-count {
+            font-size: 0.85rem;
+            color: #718096;
+            background: #edf2f7;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+        
+        .stats-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .stats-box h4 {
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            opacity: 0.9;
+        }
+        
+        .stat-value {
+            font-weight: 600;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #f3f4f6;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .threshold-info {
+            background: #fef5e7;
+            border-left: 4px solid #f39c12;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .threshold-info p {
+            color: #7d6608;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        canvas {
+            max-height: 600px !important;
+        }
+        
+        .search-box {
+            position: relative;
+            margin-bottom: 15px;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .mode-toggle {
+            display: flex;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 28px;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #667eea;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(32px);
+        }
+        
+        .group-label-a {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        
+        .group-label-b {
+            color: #ef4444;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>UK VAT Lab Interactive Analysis</h1>
+            <p class="subtitle">Explore firm turnover distribution by sector</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="controls-panel">
+                <div class="control-section">
+                    <h3>⚙️ View Mode</h3>
+                    <div class="mode-toggle">
+                        <label class="switch">
+                            <input type="checkbox" id="comparisonMode" onchange="toggleComparisonMode()">
+                            <span class="slider"></span>
+                        </label>
+                        <label for="comparisonMode" style="margin-left: 10px; cursor: pointer;">Comparison Mode</label>
+                    </div>
+                </div>
+                
+                <div id="singleModeControls">
+                    <div class="control-section">
+                        <h3>📊 Sector Selection</h3>
+                        
+                        <div class="control-buttons">
+                            <button class="btn btn-primary" onclick="selectAll()">Select All</button>
+                            <button class="btn btn-secondary" onclick="clearAll()">Clear All</button>
+                            <button class="btn btn-secondary" onclick="selectConsumerFacing()">Consumer Facing</button>
+                        </div>
+                        
+                        <div class="search-box">
+                            <input type="text" id="sectorSearch" placeholder="Search sectors..." onkeyup="filterSectors()">
+                        </div>
+                        
+                        <div class="sector-grid" id="sectorList">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                <p>Loading sectors...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="comparisonModeControls" style="display: none;">
+                    <div class="control-section">
+                        <h3>🔀 Quick Comparisons</h3>
+                        <div class="control-buttons" style="flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="setComparisonPreset('consumer')">Consumer vs B2B</button>
+                            <button class="btn btn-primary" onclick="setComparisonPreset('manufacturing')">Manufacturing vs Services</button>
+                            <button class="btn btn-primary" onclick="setComparisonPreset('retail')">Retail vs Professional</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 style="color: #3b82f6;">🔵 Group A</h3>
+                        <div class="control-buttons">
+                            <button class="btn btn-primary" onclick="selectAllGroup('A')">Select All</button>
+                            <button class="btn btn-secondary" onclick="clearAllGroup('A')">Clear All</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="sectorSearchA" placeholder="Search sectors..." onkeyup="filterSectorsGroup('A')">
+                        </div>
+                        <div class="sector-grid" id="sectorListA" style="max-height: 250px;">
+                            <p>Loading...</p>
+                        </div>
+                    </div>
+                    
+                    <div class="control-section">
+                        <h3 style="color: #ef4444;">🔴 Group B</h3>
+                        <div class="control-buttons">
+                            <button class="btn btn-primary" onclick="selectAllGroup('B')">Select All</button>
+                            <button class="btn btn-secondary" onclick="clearAllGroup('B')">Clear All</button>
+                        </div>
+                        <div class="search-box">
+                            <input type="text" id="sectorSearchB" placeholder="Search sectors..." onkeyup="filterSectorsGroup('B')">
+                        </div>
+                        <div class="sector-grid" id="sectorListB" style="max-height: 250px;">
+                            <p>Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="threshold-info">
+                    <p><strong>VAT Thresholds:</strong><br>
+                    🔴 Registration: £90,000<br>
+                    🟠 Flat Rate Limit: £150,000</p>
+                </div>
+                
+                <div class="stats-box" id="statsBox" style="display: none;">
+                    <h4>📈 Selected Sectors Statistics</h4>
+                    <div id="statsContent"></div>
+                </div>
+                
+                <div class="stats-box" id="statsBoxComparison" style="display: none;">
+                    <h4>📊 Comparison Statistics</h4>
+                    <div id="statsContentA"></div>
+                    <hr style="margin: 15px 0; border: none; border-top: 1px solid rgba(255,255,255,0.3);">
+                    <div id="statsContentB"></div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="turnoverChart"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Sector definitions with SIC codes
+        const sectorDefinitions = {
+            1: 'Crop and Animal Production',
+            2: 'Forestry and Logging',
+            3: 'Fishing and Aquaculture',
+            5: 'Mining of Coal',
+            6: 'Extraction of Oil and Gas',
+            8: 'Other Mining and Quarrying',
+            9: 'Mining Support Services',
+            10: 'Food Products',
+            11: 'Beverages',
+            13: 'Textiles',
+            14: 'Wearing Apparel',
+            15: 'Leather Products',
+            16: 'Wood Products',
+            17: 'Paper Products',
+            18: 'Printing and Reproduction',
+            19: 'Coke and Petroleum',
+            20: 'Chemicals',
+            21: 'Pharmaceuticals',
+            22: 'Rubber and Plastic',
+            23: 'Other Non-metallic Mineral',
+            24: 'Basic Metals',
+            25: 'Fabricated Metal',
+            26: 'Computer and Electronic',
+            27: 'Electrical Equipment',
+            28: 'Machinery',
+            29: 'Motor Vehicles',
+            30: 'Other Transport Equipment',
+            31: 'Furniture',
+            32: 'Other Manufacturing',
+            33: 'Repair of Machinery',
+            35: 'Electricity and Gas',
+            36: 'Water Collection',
+            37: 'Sewerage',
+            38: 'Waste Management',
+            39: 'Remediation Services',
+            41: 'Construction of Buildings',
+            42: 'Civil Engineering',
+            43: 'Specialized Construction',
+            45: 'Motor Vehicle Trade',
+            46: 'Wholesale Trade',
+            47: 'Retail Trade',
+            49: 'Land Transport',
+            50: 'Water Transport',
+            51: 'Air Transport',
+            52: 'Warehousing',
+            53: 'Postal and Courier',
+            55: 'Accommodation',
+            56: 'Food & Beverage Service',
+            58: 'Publishing',
+            59: 'Motion Picture and Music',
+            60: 'Broadcasting',
+            61: 'Telecommunications',
+            62: 'Computer Programming',
+            63: 'Information Services',
+            64: 'Financial Services',
+            65: 'Insurance',
+            66: 'Auxiliary Financial',
+            68: 'Real Estate',
+            69: 'Legal & Accounting',
+            70: 'Management Consultancy',
+            71: 'Architecture & Engineering',
+            72: 'Scientific Research',
+            73: 'Advertising',
+            74: 'Other Professional',
+            75: 'Veterinary',
+            77: 'Rental & Leasing',
+            78: 'Employment Services',
+            79: 'Travel Agency',
+            80: 'Security Services',
+            81: 'Facilities Support',
+            82: 'Office Support',
+            84: 'Public Administration',
+            85: 'Education',
+            86: 'Human Health',
+            87: 'Residential Care',
+            88: 'Social Work',
+            90: 'Arts & Entertainment',
+            91: 'Libraries and Museums',
+            92: 'Gambling',
+            93: 'Sports & Recreation',
+            94: 'Membership Organizations',
+            95: 'Repair Services',
+            96: 'Other Personal Services',
+            97: 'Household Employers',
+            99: 'Extraterritorial'
+        };
+        
+        // Consumer-facing sectors (from the Python script)
+        const consumerFacingSectors = [45, 46, 47, 55, 56, 69, 70, 71, 73, 74, 77, 81, 85, 86, 87, 88, 90, 93, 95, 96];
+        
+        let allData = [];
+        let chart = null;
+        let isComparisonMode = false;
+        
+        // B2B sectors (everything not consumer-facing)
+        const b2bSectors = [1, 2, 3, 5, 6, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 35, 36, 37, 38, 39, 41, 42, 43, 49, 50, 51, 52, 53, 58, 59, 60, 61, 62, 63, 64, 65, 66, 68, 72, 75, 78, 79, 80, 82, 84, 91, 92, 94, 97, 99];
+        
+        // Manufacturing sectors
+        const manufacturingSectors = [10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33];
+        
+        // Service sectors
+        const serviceSectors = [45, 46, 47, 49, 50, 51, 52, 53, 55, 56, 58, 59, 60, 61, 62, 63, 64, 65, 66, 68, 69, 70, 71, 72, 73, 74, 75, 77, 78, 79, 80, 81, 82, 85, 86, 87, 88, 90, 91, 92, 93, 94, 95, 96];
+        
+        // Professional sectors
+        const professionalSectors = [69, 70, 71, 72, 73, 74, 62, 63, 64, 65, 66, 68];
+        
+        // Load and process the CSV data
+        async function loadData() {
+            try {
+                const response = await fetch('analysis/synthetic_firms_turnover.csv');
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        allData = results.data.filter(row => row.sic_numeric && row.annual_turnover_k);
+                        initializeSectorList();
+                        initializeComparisonSectorLists();
+                        updateChart();
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('sectorList').innerHTML = '<p style="color: red;">Error loading data. Please ensure the CSV file is accessible.</p>';
+            }
+        }
+        
+        // Initialize the sector checkbox list
+        function initializeSectorList() {
+            const sectorList = document.getElementById('sectorList');
+            const sectors = [...new Set(allData.map(d => d.sic_numeric))].sort((a, b) => a - b);
+            
+            let html = '';
+            sectors.forEach(sectorCode => {
+                const sectorName = sectorDefinitions[sectorCode] || `Sector ${sectorCode}`;
+                const firmCount = allData.filter(d => d.sic_numeric === sectorCode)
+                    .reduce((sum, d) => sum + (d.weight || 0), 0);
+                
+                html += `
+                    <div class="sector-item">
+                        <input type="checkbox" id="sector_${sectorCode}" value="${sectorCode}" 
+                               onchange="updateChart()" checked>
+                        <label for="sector_${sectorCode}">
+                            <span>${sectorCode}: ${sectorName}</span>
+                            <span class="firm-count">${Math.round(firmCount).toLocaleString()} firms</span>
+                        </label>
+                    </div>
+                `;
+            });
+            
+            sectorList.innerHTML = html;
+        }
+        
+        // Initialize comparison mode sector lists
+        function initializeComparisonSectorLists() {
+            const sectors = [...new Set(allData.map(d => d.sic_numeric))].sort((a, b) => a - b);
+            
+            ['A', 'B'].forEach(group => {
+                const sectorList = document.getElementById(`sectorList${group}`);
+                let html = '';
+                
+                sectors.forEach(sectorCode => {
+                    const sectorName = sectorDefinitions[sectorCode] || `Sector ${sectorCode}`;
+                    const firmCount = allData.filter(d => d.sic_numeric === sectorCode)
+                        .reduce((sum, d) => sum + (d.weight || 0), 0);
+                    
+                    html += `
+                        <div class="sector-item">
+                            <input type="checkbox" id="sector_${group}_${sectorCode}" value="${sectorCode}" 
+                                   onchange="updateComparisonChart()">
+                            <label for="sector_${group}_${sectorCode}">
+                                <span>${sectorCode}: ${sectorName}</span>
+                                <span class="firm-count">${Math.round(firmCount).toLocaleString()}</span>
+                            </label>
+                        </div>
+                    `;
+                });
+                
+                sectorList.innerHTML = html;
+            });
+        }
+        
+        // Toggle comparison mode
+        function toggleComparisonMode() {
+            isComparisonMode = document.getElementById('comparisonMode').checked;
+            
+            document.getElementById('singleModeControls').style.display = isComparisonMode ? 'none' : 'block';
+            document.getElementById('comparisonModeControls').style.display = isComparisonMode ? 'block' : 'none';
+            document.getElementById('statsBox').style.display = 'none';
+            document.getElementById('statsBoxComparison').style.display = 'none';
+            
+            if (isComparisonMode) {
+                updateComparisonChart();
+            } else {
+                updateChart();
+            }
+        }
+        
+        // Set comparison presets
+        function setComparisonPreset(preset) {
+            // Clear all selections first
+            document.querySelectorAll('#sectorListA input, #sectorListB input').forEach(cb => cb.checked = false);
+            
+            let groupASectors = [];
+            let groupBSectors = [];
+            
+            switch(preset) {
+                case 'consumer':
+                    groupASectors = consumerFacingSectors;
+                    groupBSectors = b2bSectors;
+                    break;
+                case 'manufacturing':
+                    groupASectors = manufacturingSectors;
+                    groupBSectors = serviceSectors;
+                    break;
+                case 'retail':
+                    groupASectors = [47]; // Retail trade
+                    groupBSectors = professionalSectors;
+                    break;
+            }
+            
+            // Check the appropriate boxes
+            groupASectors.forEach(code => {
+                const checkbox = document.getElementById(`sector_A_${code}`);
+                if (checkbox) checkbox.checked = true;
+            });
+            
+            groupBSectors.forEach(code => {
+                const checkbox = document.getElementById(`sector_B_${code}`);
+                if (checkbox) checkbox.checked = true;
+            });
+            
+            updateComparisonChart();
+        }
+        
+        // Group-specific functions
+        function selectAllGroup(group) {
+            document.querySelectorAll(`#sectorList${group} input[type="checkbox"]`).forEach(cb => {
+                cb.checked = true;
+            });
+            updateComparisonChart();
+        }
+        
+        function clearAllGroup(group) {
+            document.querySelectorAll(`#sectorList${group} input[type="checkbox"]`).forEach(cb => {
+                cb.checked = false;
+            });
+            updateComparisonChart();
+        }
+        
+        function filterSectorsGroup(group) {
+            const searchTerm = document.getElementById(`sectorSearch${group}`).value.toLowerCase();
+            const sectorItems = document.querySelectorAll(`#sectorList${group} .sector-item`);
+            
+            sectorItems.forEach(item => {
+                const label = item.querySelector('label').textContent.toLowerCase();
+                item.style.display = label.includes(searchTerm) ? 'flex' : 'none';
+            });
+        }
+        
+        // Filter sectors based on search
+        function filterSectors() {
+            const searchTerm = document.getElementById('sectorSearch').value.toLowerCase();
+            const sectorItems = document.querySelectorAll('.sector-item');
+            
+            sectorItems.forEach(item => {
+                const label = item.querySelector('label').textContent.toLowerCase();
+                item.style.display = label.includes(searchTerm) ? 'flex' : 'none';
+            });
+        }
+        
+        // Select all sectors
+        function selectAll() {
+            document.querySelectorAll('#sectorList input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+            });
+            updateChart();
+        }
+        
+        // Clear all selections
+        function clearAll() {
+            document.querySelectorAll('#sectorList input[type="checkbox"]').forEach(cb => {
+                cb.checked = false;
+            });
+            updateChart();
+        }
+        
+        // Select consumer-facing sectors
+        function selectConsumerFacing() {
+            document.querySelectorAll('#sectorList input[type="checkbox"]').forEach(cb => {
+                const sectorCode = parseInt(cb.value);
+                cb.checked = consumerFacingSectors.includes(sectorCode);
+            });
+            updateChart();
+        }
+        
+        // Update the chart based on selected sectors
+        function updateChart() {
+            const selectedSectors = Array.from(document.querySelectorAll('#sectorList input:checked'))
+                .map(cb => parseInt(cb.value));
+            
+            if (selectedSectors.length === 0) {
+                if (chart) {
+                    chart.data.datasets[0].data = [];
+                    chart.update();
+                }
+                document.getElementById('statsBox').style.display = 'none';
+                return;
+            }
+            
+            // Filter data for selected sectors
+            const filteredData = allData.filter(d => selectedSectors.includes(d.sic_numeric));
+            
+            // Create bins and calculate histogram
+            const binSize = 2; // 2k intervals
+            const maxTurnover = 300;
+            const bins = [];
+            const labels = [];
+            
+            for (let i = 0; i < maxTurnover; i += binSize) {
+                bins.push(0);
+                labels.push(`£${i}k`);
+            }
+            
+            // Calculate weighted histogram
+            filteredData.forEach(firm => {
+                const binIndex = Math.floor(firm.annual_turnover_k / binSize);
+                if (binIndex < bins.length) {
+                    bins[binIndex] += firm.weight || 0;
+                }
+            });
+            
+            // Create color array based on thresholds
+            const colors = bins.map((_, index) => {
+                const turnover = index * binSize;
+                if (turnover < 90) return 'rgba(252, 165, 165, 0.7)'; // Light red
+                if (turnover < 150) return 'rgba(139, 0, 0, 0.7)'; // Dark red
+                return 'rgba(255, 165, 0, 0.7)'; // Orange
+            });
+            
+            // Update or create chart
+            const ctx = document.getElementById('turnoverChart').getContext('2d');
+            
+            if (chart) {
+                chart.data.labels = labels;
+                chart.data.datasets[0].data = bins;
+                chart.data.datasets[0].backgroundColor = colors;
+                chart.update();
+            } else {
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Number of Firms',
+                            data: bins,
+                            backgroundColor: colors,
+                            borderColor: 'rgba(0, 0, 0, 0.1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Firm Turnover Distribution by Selected Sectors',
+                                font: { size: 18 }
+                            },
+                            legend: {
+                                display: false
+                            },
+                            annotation: {
+                                annotations: {
+                                    line1: {
+                                        type: 'line',
+                                        xMin: 45,
+                                        xMax: 45,
+                                        borderColor: 'red',
+                                        borderWidth: 2,
+                                        borderDash: [5, 5],
+                                        label: {
+                                            content: 'VAT Threshold £90k',
+                                            enabled: true,
+                                            position: 'top'
+                                        }
+                                    },
+                                    line2: {
+                                        type: 'line',
+                                        xMin: 75,
+                                        xMax: 75,
+                                        borderColor: 'orange',
+                                        borderWidth: 2,
+                                        borderDash: [5, 5],
+                                        label: {
+                                            content: 'Flat Rate Limit £150k',
+                                            enabled: true,
+                                            position: 'top'
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Annual Turnover'
+                                },
+                                ticks: {
+                                    callback: function(value, index) {
+                                        return index % 5 === 0 ? labels[index] : '';
+                                    },
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Number of Firms'
+                                },
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Update statistics
+            updateStatistics(filteredData);
+        }
+        
+        // Update comparison chart
+        function updateComparisonChart() {
+            const selectedSectorsA = Array.from(document.querySelectorAll('#sectorListA input:checked'))
+                .map(cb => parseInt(cb.value));
+            const selectedSectorsB = Array.from(document.querySelectorAll('#sectorListB input:checked'))
+                .map(cb => parseInt(cb.value));
+            
+            // Filter data for both groups
+            const dataA = allData.filter(d => selectedSectorsA.includes(d.sic_numeric));
+            const dataB = allData.filter(d => selectedSectorsB.includes(d.sic_numeric));
+            
+            // Create bins
+            const binSize = 2;
+            const maxTurnover = 300;
+            const labels = [];
+            const binsA = [];
+            const binsB = [];
+            
+            for (let i = 0; i < maxTurnover; i += binSize) {
+                labels.push(`£${i}k`);
+                binsA.push(0);
+                binsB.push(0);
+            }
+            
+            // Calculate histograms
+            dataA.forEach(firm => {
+                const binIndex = Math.floor(firm.annual_turnover_k / binSize);
+                if (binIndex < binsA.length) {
+                    binsA[binIndex] += firm.weight || 0;
+                }
+            });
+            
+            dataB.forEach(firm => {
+                const binIndex = Math.floor(firm.annual_turnover_k / binSize);
+                if (binIndex < binsB.length) {
+                    binsB[binIndex] += firm.weight || 0;
+                }
+            });
+            
+            // Update or create chart
+            const ctx = document.getElementById('turnoverChart').getContext('2d');
+            
+            if (chart) {
+                chart.destroy();
+            }
+            
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Group A',
+                            data: binsA,
+                            backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Group B',
+                            data: binsB,
+                            backgroundColor: 'rgba(239, 68, 68, 0.5)',
+                            borderColor: 'rgba(239, 68, 68, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Firm Turnover Distribution Comparison',
+                            font: { size: 18 }
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Annual Turnover'
+                            },
+                            ticks: {
+                                callback: function(value, index) {
+                                    return index % 5 === 0 ? labels[index] : '';
+                                },
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Number of Firms'
+                            },
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Update comparison statistics
+            updateComparisonStatistics(dataA, dataB);
+        }
+        
+        // Update comparison statistics
+        function updateComparisonStatistics(dataA, dataB) {
+            const statsBox = document.getElementById('statsBoxComparison');
+            const statsContentA = document.getElementById('statsContentA');
+            const statsContentB = document.getElementById('statsContentB');
+            
+            // Group A stats
+            const totalFirmsA = dataA.reduce((sum, d) => sum + (d.weight || 0), 0);
+            const belowThresholdA = dataA.filter(d => d.annual_turnover_k < 90)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            const vatRegisteredA = dataA.filter(d => d.vat_registered)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            
+            // Group B stats
+            const totalFirmsB = dataB.reduce((sum, d) => sum + (d.weight || 0), 0);
+            const belowThresholdB = dataB.filter(d => d.annual_turnover_k < 90)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            const vatRegisteredB = dataB.filter(d => d.vat_registered)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            
+            statsContentA.innerHTML = `
+                <div style="margin-bottom: 10px;"><span class="group-label-a">🔵 Group A</span></div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Firms:</span>
+                    <span class="stat-value">${Math.round(totalFirmsA).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Below VAT Threshold:</span>
+                    <span class="stat-value">${Math.round(belowThresholdA).toLocaleString()} (${totalFirmsA > 0 ? (belowThresholdA/totalFirmsA*100).toFixed(1) : 0}%)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">VAT Registered:</span>
+                    <span class="stat-value">${Math.round(vatRegisteredA).toLocaleString()} (${totalFirmsA > 0 ? (vatRegisteredA/totalFirmsA*100).toFixed(1) : 0}%)</span>
+                </div>
+            `;
+            
+            statsContentB.innerHTML = `
+                <div style="margin-bottom: 10px;"><span class="group-label-b">🔴 Group B</span></div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Firms:</span>
+                    <span class="stat-value">${Math.round(totalFirmsB).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Below VAT Threshold:</span>
+                    <span class="stat-value">${Math.round(belowThresholdB).toLocaleString()} (${totalFirmsB > 0 ? (belowThresholdB/totalFirmsB*100).toFixed(1) : 0}%)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">VAT Registered:</span>
+                    <span class="stat-value">${Math.round(vatRegisteredB).toLocaleString()} (${totalFirmsB > 0 ? (vatRegisteredB/totalFirmsB*100).toFixed(1) : 0}%)</span>
+                </div>
+            `;
+            
+            if (totalFirmsA > 0 || totalFirmsB > 0) {
+                statsBox.style.display = 'block';
+            } else {
+                statsBox.style.display = 'none';
+            }
+        }
+        
+        // Update statistics box
+        function updateStatistics(data) {
+            const statsBox = document.getElementById('statsBox');
+            const statsContent = document.getElementById('statsContent');
+            
+            const totalFirms = data.reduce((sum, d) => sum + (d.weight || 0), 0);
+            const belowThreshold = data.filter(d => d.annual_turnover_k < 90)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            const nearThreshold = data.filter(d => d.annual_turnover_k >= 80 && d.annual_turnover_k <= 100)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            const vatRegistered = data.filter(d => d.vat_registered)
+                .reduce((sum, d) => sum + (d.weight || 0), 0);
+            
+            statsContent.innerHTML = `
+                <div class="stat-item">
+                    <span class="stat-label">Total Firms:</span>
+                    <span class="stat-value">${Math.round(totalFirms).toLocaleString()}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Below VAT Threshold:</span>
+                    <span class="stat-value">${Math.round(belowThreshold).toLocaleString()} (${(belowThreshold/totalFirms*100).toFixed(1)}%)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Near Threshold (£80-100k):</span>
+                    <span class="stat-value">${Math.round(nearThreshold).toLocaleString()} (${(nearThreshold/totalFirms*100).toFixed(1)}%)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">VAT Registered:</span>
+                    <span class="stat-value">${Math.round(vatRegistered).toLocaleString()} (${(vatRegistered/totalFirms*100).toFixed(1)}%)</span>
+                </div>
+            `;
+            
+            statsBox.style.display = 'block';
+        }
+        
+        // Initialize on page load
+        window.onload = function() {
+            loadData();
+        };
+    </script>
+</body>
+</html>
