@@ -41,6 +41,8 @@ data/synthetic_firms.parquet
 data/synthetic_firms.csv
 data/synthetic_firms_turnover.csv
 analysis/synthetic_firms_turnover.csv
+analysis/vat_threshold_bunching_by_sector.csv
+analysis/vat_threshold_bunching_by_sector_no_zeros.csv
 
 # Python
 __pycache__/
