@@ -44,6 +44,13 @@ analysis/synthetic_firms_turnover.csv
 analysis/vat_threshold_bunching_by_sector.csv
 analysis/vat_threshold_bunching_by_sector_no_zeros.csv
 
+# Large files
+*.pdf
+elasticity/*.pdf
+analysis/*.csv
+!analysis/sector_elasticities_hmrc.csv
+!analysis/bunching_temporal_analysis.csv
+
 # Python
 __pycache__/
 *.py[cod]
